@@ -15,7 +15,7 @@ async function setup(prov,vp,dark){const c=await b.newContext({viewport:vp||{wid
  await p.route(/api\.openai\.com|generativelanguage\.googleapis\.com|ark\.cn-beijing\.volces\.com|\/api\/proxy/,handler);
  await p.addInitScript(([prov,dark])=>{if(!sessionStorage.x){sessionStorage.x=1;localStorage.setItem('wbCfg',JSON.stringify({prov,base:prov=='custom'?'https://relay.example.com':'',model:'',field:'image[]',proto:'json',proxy:false}));localStorage.setItem('introX','1');if(dark)localStorage.setItem('theme','dark')}window.__TMO=3000},[prov,dark]);
  await p.goto(U+'/#studio');await p.waitForFunction(()=>window.WB&&window.APP,null,{timeout:15000});
- await p.click('#wbCfg');await p.fill('#cfKey','sk-test-123');await p.click('#cfSave');
+ await p.locator('#wbCfg:visible, #wbCfg2:visible, #wbOnbGo:visible').first().click();await p.fill('#cfKey','sk-test-123');await p.click('#cfSave');
  if(await p.evaluate(()=>JSON.parse(localStorage.wbCfg).key!==undefined))throw Error('API key persisted');
  await p.setInputFiles('#wbFile',FX+'person.png');
  await p.evaluate(async()=>{await APP.load('costume');const k=Object.keys(APP.ITEMS).find(k=>APP.ITEMS[k].type=='costume');await WB.pick(APP.ITEMS[k])});
@@ -33,7 +33,7 @@ for(const prov of ['openai','gemini','seedream','custom']){hits=[];mode='ok';con
    R.push(['neutral default on',on0,'']);R.push(['ON rewrites',/Professional e-commerce/.test(bOn)&&!/sexy|性感|比基尼|curves/i.test(bOn)&&/开背设计|open-back/.test(bOn),bOn.match(/Additional[^"\\]*/)?.[0]||bOn.slice(0,120)]);
    R.push(['OFF exact',!/Professional e-commerce/.test(bOff)&&/sexy tight backless bikini/.test(bOff),'']);
    const sentD=await p.$eval('#wbSentD',e=>e.textContent);R.push(['sent shown',/实际发送/.test(sentD),'']);
-   await p.reload();await p.waitForFunction(()=>window.WB,null,{timeout:15000});await p.evaluate(()=>WB.show());await p.click('#wbCfg');await p.fill('#cfKey','sk-test-123');await p.click('#cfSave');R.push(['toggle persists off',await p.$eval('#wbNeutral',e=>!e.checked),'']);
+   await p.reload();await p.waitForFunction(()=>window.WB,null,{timeout:15000});await p.evaluate(()=>WB.show());await p.locator('#wbCfg:visible, #wbCfg2:visible, #wbOnbGo:visible').first().click();await p.fill('#cfKey','sk-test-123');await p.click('#cfSave');R.push(['toggle persists off',await p.$eval('#wbNeutral',e=>!e.checked),'']);
    await p.setInputFiles('#wbFile',FX+'person.png');await p.evaluate(async()=>{await APP.load('costume');const k=Object.keys(APP.ITEMS).find(k=>APP.ITEMS[k].type=='costume');await WB.pick(APP.ITEMS[k])});await p.waitForFunction(()=>!document.querySelector('#wbGo').disabled,null,{timeout:15000});
    mode='safe-oai';await go(p);const qa=await p.$('[data-ef=neutral]');mode='ok';bodies=[];if(qa){await qa.click();await p.waitForTimeout(400);await p.waitForFunction(()=>document.querySelector('#wbBusy').hidden,null,{timeout:15000})}
    R.push(['quick action',!!qa&&await p.$eval('#wbNeutral',e=>e.checked)&&/Professional e-commerce/.test(bodies.join(' '))&&(await st(p)).res=='blob:','']);
