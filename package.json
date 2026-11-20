@@ -4,10 +4,12 @@
   "description": "衣姿 PoseWear：姿势、服装、人像参考图库与 AI 试穿工作台",
   "license": "MIT",
   "scripts": {
-    "build": "python3 build.py",
+    "build": "python -X utf8 build.py",
     "serve": "python3 -m http.server 8787 -d dist",
     "test": "node tests/v12.js && node tests/v13.js",
-    "deploy": "wrangler pages deploy dist --project-name posewear"
+    "deploy": "wrangler pages deploy dist --project-name posewear-mirari --branch main",
+    "assets:meta": "python -X utf8 scripts/fetch-assets.py --meta-only",
+    "test:privacy": "node tests/privacy.js"
   },
   "devDependencies": {
     "playwright": "^1.48.0",

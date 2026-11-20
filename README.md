@@ -1,3 +1,31 @@
+# mirari 的个人部署版本
+
+Fork 自 [atuizz/posewear](https://github.com/atuizz/posewear)，保留上游 MIT 许可与素材来源致谢。
+
+- 部署地址：https://posewear-mirari.pages.dev
+- 页面代码与 `/api/proxy` 由 mirari 的 Cloudflare 账户管理；未配置自动同步或自动部署上游更新。
+- API Key 仅保留在当前页面内存，不写入 localStorage，不导出或从配置文件导入；刷新后重新输入。其他设置仍可保存。
+- 官方 API 可直连；开启代理或使用自定义中转时经过自己的 Cloudflare Function。服务商和所选中转仍会收到 Key。
+- 默认只下载元数据，图片直接来自原图库；图片站可见 IP，不会收到模型 Key。图片可用性依赖原图库。
+- 无真实模型 Key 写入仓库、构建产物或 Cloudflare 环境变量。
+
+构建（Python 3.9+、Pillow、Node.js）：
+
+```sh
+npm ci --ignore-scripts
+python -m pip install pillow
+npm run assets:meta
+npm run build
+```
+
+默认使用远程图片。设置 `POSEWEAR_REMOTE_ASSETS=0` 并运行完整素材下载，可恢复本地图片构建；完整部署需注意 Pages 文件数量限制。
+
+部署使用本机 Windows 凭据管理器中的 `Codex:cloudflare.com`。不要把令牌写入 `.env`、源码或命令行。当前部署为本地构建后 Direct Upload，Git push 本身不会自动发布。
+
+验证：启动 `dist` 静态服务器后设置 `U` 为预览地址、`CHROME_PATH` 为 Chrome 可执行文件，运行 `npm test` 与 `npm run test:privacy`。模型请求使用测试替身，不产生真实图像生成费用。
+
+---
+
 <div align="center">
 
 <img src="docs/banner.jpg" alt="人像 + 姿势 + 服饰 = 成品" width="900">

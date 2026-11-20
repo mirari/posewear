@@ -1,5 +1,5 @@
 # v10 构建后处理：哈希资源、静态详情页、SEO 文件、_headers（由 build.py exec）
-SITE=os.environ.get('POSEWEAR_SITE','https://posewear.pages.dev').rstrip('/')  # 部署到自己的域名时改这里
+SITE=os.environ.get('POSEWEAR_SITE','https://posewear-mirari.pages.dev').rstrip('/')  # 部署到自己的域名时改这里
 AH=os.environ.get('POSEWEAR_ASSET_HOST','').rstrip('/')  # 分离部署时缩略图/原图所在站（见 build.py 的 AHOST）
 def TU(p): return p if p.startswith('http') else (AH+'/'+p if AH else '/'+p)  # 缩略图相对引用
 def TS(p): return p if p.startswith('http') else (AH+'/'+p if AH else SITE+'/'+p)  # 缩略图绝对引用（JSON-LD）
@@ -17,7 +17,7 @@ if AH: app=app.replace("const AH='';",f"const AH='{AH}/';")
 app=app.replace("'poses.json'","'/"+A['poses.json']+"'").replace("'costumes.json'","'/"+A['costumes.json']+"'").replace("'anime.json'","'/"+A['anime.json']+"'").replace("'portraits.json'","'/"+A['portraits.json']+"'").replace("'depths.json'","'/"+A['depths.json']+"'")
 put('app.js',app)
 VER='posewear-v10-'+h8(''.join(A.values()))
-idx=open('src/index.html').read()
+idx=open('src/index.html').read().replace('https://posewear.pages.dev',SITE)
 for f in ['style.css','app.js','zip.js','extras.js','studio.js']:
   idx=idx.replace(f'"{f}"',f'"/{A[f]}"')
 idx=idx.replace('href="poses.json"',f'href="/{A["poses.json"]}"')
@@ -62,16 +62,16 @@ def page(kind,it,rel):
     ttl=f"{it['ti']} · {it['cat']}穿搭参考";img=it['m'];w,h=1080,1620;th=it['t']
     desc=it['zh'];meta=f"{it['cat']} · 编号 {it['id']}";en=it['en']
   url=f"{SITE}/{kind}/{it['id']}/"
-  ld={"@context":"https://schema.org","@type":"ImageObject","name":ttl,"description":desc,"contentUrl":f"{SITE}/{img}","thumbnailUrl":f"{TS(th)}","url":url,"width":w,"height":h,"isPartOf":{"@type":"WebSite","name":"衣姿 PoseWear","url":SITE+'/'},"creditText":"AI Pose Gallery / AI Costume Gallery (@giaaibusi)"}
+  ld={"@context":"https://schema.org","@type":"ImageObject","name":ttl,"description":desc,"contentUrl":TS(img),"thumbnailUrl":f"{TS(th)}","url":url,"width":w,"height":h,"isPartOf":{"@type":"WebSite","name":"衣姿 PoseWear","url":SITE+'/'},"creditText":"AI Pose Gallery / AI Costume Gallery (@giaaibusi)"}
   rl=''.join(f'<li><a href="/{kind}/{r["id"]}/"><img src="{TU(r["angles"][0]["t"] if P else r["t"])}" alt="{E(r["zh"] if P else r["ti"])}" width="{300 if P else 360 if kind=="costume" else 400}" height="{400 if P else 540 if kind=="costume" else 500}" loading="lazy">{E(r["zh"] if P else r["ti"])}</a></li>' for r in rel)
   lab={'pose':'姿势库','costume':'服装库','portrait':'人像库'}[kind]
   return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{E(ttl)} | 衣姿 PoseWear</title><meta name="description" content="{E(desc[:150])}"><link rel="canonical" href="{url}">
-<meta property="og:type" content="article"><meta property="og:title" content="{E(ttl)}"><meta property="og:description" content="{E(desc[:150])}"><meta property="og:image" content="{SITE}/{img}"><meta property="og:url" content="{url}"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:type" content="article"><meta property="og:title" content="{E(ttl)}"><meta property="og:description" content="{E(desc[:150])}"><meta property="og:image" content="{TS(img)}"><meta property="og:url" content="{url}"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><style>{CSS}</style>
 <script type="application/ld+json">{json.dumps(ld,ensure_ascii=False)}</script></head><body>
 <header><a href="/">{LOGO}衣姿 PoseWear</a></header>
-<main><div class="im"><img src="/{img}" alt="{E(ttl)}" width="{w}" height="{h}"></div>
+<main><div class="im"><img src="{TU(img)}" alt="{E(ttl)}" width="{w}" height="{h}"></div>
 <div><div class="bc"><a href="/">首页</a> › <a href="/#{kind}">{lab}</a> › {E(it.get('cat') or it.get('len'))}</div><h1>{E(it['zh'] if P else it['ti'])}</h1><div class="mu">{E(meta)}</div>
 <div class="box"><small>中文描述</small><p>{E(desc)}</p></div><div class="box"><small>英文提示词 · PROMPT</small><p>{E(en)}</p></div>
 <a class="go" href="/#{kind}/{it['id']}">在衣姿中打开</a><a class="go" style="background:#111" href="/#studio">去试穿</a></div>
@@ -80,15 +80,15 @@ def page(kind,it,rel):
 open(f'{D}/404.html','w').write(f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>页面不存在 | 衣姿 PoseWear</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><style>{CSS}
 .nf{{max-width:480px;margin:12vh auto;text-align:center;padding:0 20px}}.nf b{{font-size:64px;color:#d81b3a;display:block;line-height:1}}</style></head><body><header><a href="/">{LOGO}衣姿 PoseWear</a></header>
 <div class="nf"><b>404</b><h1>这个页面不存在</h1><p class="mu">链接可能写错了，或者内容已经调整。</p><a class="go" href="/">回到首页</a><a class="go" style="background:#111" href="/#costume">看看服装库</a></div></body></html>''')
-_IMG=" ".join(["'self'","data:","blob:"]+list(DEPTH_ORIGINS)+([AH] if AH else []))
+_IMG=" ".join(["'self'","data:","blob:"]+list(DEPTH_ORIGINS)+REMOTE_ORIGINS+([AH] if AH else []))
 CSP=("default-src 'self'; script-src 'self' "+SH+"; style-src 'self' 'unsafe-inline'; img-src "+_IMG+"; font-src 'self' data:; "
- "connect-src 'self' data: blob: https://api.openai.com https://generativelanguage.googleapis.com https://*.volces.com https://*.bytepluses.com https://oaidalleapiprodscus.blob.core.windows.net https://*.googleusercontent.com; "
+ "connect-src 'self' data: blob: "+" ".join(REMOTE_ORIGINS)+" https://api.openai.com https://generativelanguage.googleapis.com https://*.volces.com https://*.bytepluses.com https://oaidalleapiprodscus.blob.core.windows.net https://*.googleusercontent.com; "
  "worker-src 'self'; manifest-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests")
 IMM='  Cache-Control: public, max-age=31536000, immutable\n'
 open(f'{D}/_headers','w').write(f'''/*
   Content-Security-Policy: {CSP}
   X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
+  Referrer-Policy: no-referrer
   X-Frame-Options: DENY
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()

@@ -1,10 +1,12 @@
 import json,os,shutil,subprocess,depthpack
 from costume_text import gen2
 import hashlib,re,html as H
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 # 素材目录：默认 ./assets-raw，可用环境变量 POSEWEAR_RAW 指定（见 scripts/fetch-assets.py）
 R=os.environ.get('POSEWEAR_RAW','assets-raw'); D='dist'
+REMOTE=os.environ.get('POSEWEAR_REMOTE_ASSETS','1')=='1'
+REMOTE_ORIGINS=['https://ai-pose-gallery.pages.dev','https://ai-costume-gallery.pages.dev','https://ai-costume-anime-gallery.pages.dev','https://ai-portrait-gallery.pages.dev'] if REMOTE else []
 # 分离部署：设 POSEWEAR_ASSET_HOST 后，缩略图与原图输出到 dist-assets（独立 Pages 站），主站文件数压回免费版上限内；不设则单站构建，行为不变
 AHOST=os.environ.get('POSEWEAR_ASSET_HOST','').rstrip('/'); AD='dist-assets'; AROOT=AD if AHOST else D
 if AHOST: os.makedirs(AD,exist_ok=True)
@@ -67,9 +69,11 @@ for d in rd:
   pors.append(it)
 RJ=J(pors)
 if os.path.exists(f'{D}/data.js'): os.remove(f'{D}/data.js')
-for a,b in [('costume/thumbs','c/t'),('costume/img','c/i'),('anime/thumbs','a/t'),('anime/img','a/i')]:
-  shutil.copytree(f'{R}/{a}',f'{AROOT if b.endswith("/t") else D}/{b}',dirs_exist_ok=True)
-os.makedirs(f'{D}/p/i',exist_ok=True)
+if not REMOTE:
+  for a,b in [('costume/thumbs','c/t'),('costume/img','c/i'),('anime/thumbs','a/t'),('anime/img','a/i')]:
+    shutil.copytree(f'{R}/{a}',f'{AROOT if b.endswith("/t") else D}/{b}',dirs_exist_ok=True)
+  os.makedirs(f'{D}/p/i',exist_ok=True)
+
 def cv(d):
   t=f"{AROOT}/p/t/{d['id']}.webp"
   if not os.path.exists(t):
@@ -100,18 +104,34 @@ def cr(d):
     im=Image.open(f"{R}/portrait/{d['full']}").convert('RGB'); im.thumbnail((1080,1350)); im.save(o,'WEBP',quality=80)
   o=f"{AROOT}/o/r/{d['id']}.png"
   if not os.path.exists(o): os.link(f"{R}/portrait/{d['full']}",o)
-for x in ['p/t','c/m','o/p','o/c','a/m','o/a','r/t','r/m','o/r']: os.makedirs(f'{AROOT if x.endswith("/t") or x.startswith("o/") else D}/{x}',exist_ok=True)
-if AHOST:
-  # 分离模式下缩略图/原图改写到 dist-assets，删掉 dist 里上一轮单站构建残留的旧文件，
-  # 否则主站仍含这批文件、文件数压不回 2 万上限（Codex review on PR #4）
-  for _d in ['p/t','c/t','a/t','r/t','o']:
-    shutil.rmtree(f'{D}/{_d}',ignore_errors=True)
-if os.path.exists(f'{AROOT}/p/t'):
-  for f in os.listdir(f'{AROOT}/p/t'):
-    if f.endswith('.jpg'): os.remove(f'{AROOT}/p/t/{f}')
-if AHOST:
-  open(f'{AD}/_headers','w').write('/*\n  Cache-Control: public, max-age=31536000, immutable\n  Access-Control-Allow-Origin: *\n/o/*\n  Content-Disposition: attachment\n')
-with ProcessPoolExecutor() as ex: list(ex.map(cv,pd)); list(ex.map(cm,cd)); list(ex.map(ca,ad)); list(ex.map(cr,rd))
+if not REMOTE:
+  for x in ['p/t','c/m','o/p','o/c','a/m','o/a','r/t','r/m','o/r']: os.makedirs(f'{AROOT if x.endswith("/t") or x.startswith("o/") else D}/{x}',exist_ok=True)
+  if AHOST:
+    # 分离模式下缩略图/原图改写到 dist-assets，删掉 dist 里上一轮单站构建残留的旧文件，
+    # 否则主站仍含这批文件、文件数压不回 2 万上限（Codex review on PR #4）
+    for _d in ['p/t','c/t','a/t','r/t','o']:
+      shutil.rmtree(f'{D}/{_d}',ignore_errors=True)
+  if os.path.exists(f'{AROOT}/p/t'):
+    for f in os.listdir(f'{AROOT}/p/t'):
+      if f.endswith('.jpg'): os.remove(f'{AROOT}/p/t/{f}')
+  if AHOST:
+    open(f'{AD}/_headers','w').write('/*\n  Cache-Control: public, max-age=31536000, immutable\n  Access-Control-Allow-Origin: *\n/o/*\n  Content-Disposition: attachment\n')
+  with ThreadPoolExecutor(max_workers=min(8,os.cpu_count() or 4)) as ex: list(ex.map(cv,pd)); list(ex.map(cm,cd)); list(ex.map(ca,ad)); list(ex.map(cr,rd))
+else:
+  from urllib.parse import urljoin, urlsplit
+  def remote(base,path):
+    u=urljoin(base+'/',path)
+    if urlsplit(u).netloc!=urlsplit(base).netloc or urlsplit(u).scheme!='https': raise ValueError('Invalid remote asset origin')
+    return u
+  for p in PL:
+    for a in p['angles']:
+      d=SRC[a['i']];a.update(t=remote(REMOTE_ORIGINS[0],d['サムネ']),i=remote(REMOTE_ORIGINS[0],d['原寸']),o=remote(REMOTE_ORIGINS[0],d['原寸']))
+  for items,key,base in [(cos,'',REMOTE_ORIGINS[1]),(acs,'anime:',REMOTE_ORIGINS[2])]:
+    for it in items:
+      d=SRC[key+it['id']];it.update(t=remote(base,d['サムネ']),m=remote(base,d['画像']),i=remote(base,d['画像']),o=remote(base,d['原寸']))
+  for it,d in zip(pors,rd):
+    it.update(t=remote(REMOTE_ORIGINS[3],d['thumb']),m=remote(REMOTE_ORIGINS[3],d['full']),i=remote(REMOTE_ORIGINS[3],d['full']),o=remote(REMOTE_ORIGINS[3],d['full']))
+  PJ=J(PL);CJ=J(cos);AJ=J(acs);RJ=J(pors)
 # 深度姿势：只解析素材包里的文本，热链包不复制图片（见 depthpack.py）
 _dc=depthpack.catalog(); DJ=J(_dc['payload']); DEPTH_ORIGINS=_dc['origins']
 for src,rel in _dc['copies']:
